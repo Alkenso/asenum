@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-#include <assenum/assenum.h>
+#include <asenum/asenum.h>
 
 #include <gtest/gtest.h>
 
@@ -39,36 +39,36 @@ namespace
         BoolOpt
     };
     
-    ASSENUM_DECLARE(TestAssEnum, TestEnum)
+    ASENUM_DECLARE(TestAsEnum, TestEnum)
     {
-        ASSENUM_DEFINE_STRUCTORS();
+        ASENUM_DEFINE_STRUCTORS();
         
-        ASSENUM_CASE_CC(Unknown, int);
-        ASSENUM_CASE_CC(StringOpt, std::string);
-        ASSENUM_CASE_CC(BoolOpt, bool);
+        ASENUM_CASE_CC(Unknown, int);
+        ASENUM_CASE_CC(StringOpt, std::string);
+        ASENUM_CASE_CC(BoolOpt, bool);
     };
 }
 
 TEST(AssEnum, SimpleTest)
 {
-    const TestAssEnum value1 = TestAssEnum::CreateStringOpt("test");
-    const TestAssEnum value2 = TestAssEnum::CreateBoolOpt(true);
-    const TestAssEnum value3 = TestAssEnum::CreateUnknown(-100500);
+    const TestAsEnum value1 = TestAsEnum::CreateStringOpt("test");
+    const TestAsEnum value2 = TestAsEnum::CreateBoolOpt(true);
+    const TestAsEnum value3 = TestAsEnum::CreateUnknown(-100500);
     
     EXPECT_EQ(value1.type(), TestEnum::StringOpt);
     EXPECT_EQ(value2.type(), TestEnum::BoolOpt);
     EXPECT_EQ(value3.type(), TestEnum::Unknown);
     
-    EXPECT_EQ(value1.StringOpt(), "test");
-    EXPECT_THROW(value1.Unknown(), std::exception);
-    EXPECT_THROW(value1.BoolOpt(), std::exception);
+    EXPECT_EQ(value1.asStringOpt(), "test");
+    EXPECT_THROW(value1.asUnknown(), std::exception);
+    EXPECT_THROW(value1.asBoolOpt(), std::exception);
     
-    EXPECT_EQ(value2.BoolOpt(), true);
-    EXPECT_THROW(value2.Unknown(), std::exception);
-    EXPECT_THROW(value2.StringOpt(), std::exception);
+    EXPECT_EQ(value2.asBoolOpt(), true);
+    EXPECT_THROW(value2.asUnknown(), std::exception);
+    EXPECT_THROW(value2.asStringOpt(), std::exception);
     
-    EXPECT_EQ(value3.Unknown(), -100500);
-    EXPECT_THROW(value3.StringOpt(), std::exception);
-    EXPECT_THROW(value3.BoolOpt(), std::exception);
+    EXPECT_EQ(value3.asUnknown(), -100500);
+    EXPECT_THROW(value3.asStringOpt(), std::exception);
+    EXPECT_THROW(value3.asBoolOpt(), std::exception);
     
 }

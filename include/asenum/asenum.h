@@ -36,13 +36,13 @@
  };
  
  // Declare associated enum 'AnySetting' with style of CamelCase without 'get' word in getters.
- ASSENUM_DECLARE(AnySetting, Setting)
+ ASENUM_DECLARE(AnySetting, Setting)
  {
-     ASSENUM_DEFINE_STRUCTORS();
+     ASENUM_DEFINE_STRUCTORS();
      
-     ASSENUM_CASE_CC(Host, std::string);
-     ASSENUM_CASE_CC(Port, uint16_t);
-     ASSENUM_CASE_CC(Timeout, std::chrono::seconds);
+     ASENUM_CASE_CC(Host, std::string);
+     ASENUM_CASE_CC(Port, uint16_t);
+     ASENUM_CASE_CC(Timeout, std::chrono::seconds);
  };
  
  
@@ -73,55 +73,46 @@
  */
 
 
-#define ASSENUM_DECLARE(name, enum) \
-class name: protected assenum::impl::AssEnum<enum, name>
+#define ASENUM_DECLARE(name, enum) \
+class name: protected asenum::impl::AsEnum<enum, name>
 
 
-#define ASSENUM_DEFINE_STRUCTORS() \
-public: using AssEnum::type; \
-private: using AssEnum::AssEnum
+#define ASENUM_DEFINE_STRUCTORS() \
+public: using AsEnum::type; \
+private: using AsEnum::AsEnum
 
 
 /// For enums named in CamelCase style
-#define ASSENUM_CASE_CC(case, type) ASSENUM_CASE_IMPL_NG(case, type, Create)
-/// With 'get' prefix on getter
-#define ASSENUM_CASE_CC_G(case, type) ASSENUM_CASE_IMPL_G(case, type, Create)
+#define ASENUM_CASE_CC(case, type) ASENUM_CASE_IMPL(case, type, Create)
 
 /// For enums named in lowerCamelCase style
-#define ASSENUM_CASE_LCC(case, type) ASSENUM_CASE_IMPL_NG(case, type, create)
-/// With 'get' prefix on getter
-#define ASSENUM_CASE_LCC_G(case, type) ASSENUM_CASE_IMPL_G(case, type, create)
+#define ASENUM_CASE_LCC(case, type) ASENUM_CASE_IMPL(case, type, create)
 
 /// For enums named in snake_case style
-#define ASSENUM_CASE_SC(case, type) ASSENUM_CASE_IMPL_NG(case, type, create_)
-/// With 'get' prefix on getter
-#define ASSENUM_CASE_SC_G(case, type) ASSENUM_CASE_IMPL_G(case, type, create_)
+#define ASENUM_CASE_SC(case, type) ASENUM_CASE_IMPL(case, type, create_)
 
 
 // Private stuff
 
-#define ASSENUM_CASE_IMPL_NG(case, type, createToken) ASSENUM_CASE_IMPL(case, type, createToken, )
-#define ASSENUM_CASE_IMPL_G(case, type, createToken) ASSENUM_CASE_IMPL(case, type, createToken, get)
-
-#define ASSENUM_CASE_IMPL(case, type, createToken, getPrefix) \
+#define ASENUM_CASE_IMPL(case, type, createToken) \
 public: \
     static ThisType createToken##case(type value) \
     { \
         return ThisType(AssociatedEnum::case, std::move(value)); \
     } \
     \
-    const type& getPrefix##case() const \
+    const type& as##case() const \
     { \
         return *reinterpret_cast<const type*>(validatedValueOfType(AssociatedEnum::case)); \
     }
 
 
-namespace assenum
+namespace asenum
 {
     namespace impl
     {
         template <typename Enum, typename ConcreteType>
-        class AssEnum
+        class AsEnum
         {
         public:
             using AssociatedEnum = Enum;
@@ -133,7 +124,7 @@ namespace assenum
             }
             
             template <typename T>
-            AssEnum(const Enum type, T&& value)
+            AsEnum(const Enum type, T&& value)
             : m_type(type)
             , m_value(new T(std::forward<T>(value)), [] (void* ptr) {
                 if (ptr)
