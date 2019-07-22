@@ -1,18 +1,18 @@
 # asenum
-AssociatedEnum: header-only library for C++ for enumerations with associated values
+**AssociatedEnum** is a header-only library for C++ for enumerations with associated values
 
 asenum is C++ implementation of very neat enums from Swift language (https://docs.swift.org/swift-book/LanguageGuide/Enumerations.html, chapter 'Associated Values').
 
 asenum combines Enum and Variant: it allows to create lighweight wrapper around plain C++ enum and add ability to assign different value types to different cases.
 
-Features:
+## Features
 - each enum case can be associated with different type
 - values are immutable: totally thread-safe
 - simple and powerful interface
 - lightweight header-only single file library
 - requires only C++11
 
-Example:
+## Example
 ```
 #include <string>
 #include <chrono>
