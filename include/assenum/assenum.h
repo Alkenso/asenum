@@ -74,7 +74,7 @@
 
 
 #define ASSENUM_DECLARE(name, enum) \
-class name: protected AssEnum<enum, name>
+class name: protected assenum::impl::AssEnum<enum, name>
 
 
 #define ASSENUM_DEFINE_STRUCTORS() \
