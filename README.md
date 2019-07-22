@@ -17,47 +17,53 @@ asenum combines Enum and Variant: it allows to create lighweight wrapper around 
 #include <string>
 #include <chrono>
 
- enum class Setting
- {
-     Host,
-     Port,
-     Timeout
- };
- 
- // Declare associated enum 'AnySetting' with style of CamelCase without 'get' word in getters.
- ASENUM_DECLARE(AnySetting, Setting)
- {
-     ASENUM_DEFINE_STRUCTORS();
-     
-     ASENUM_CASE_CC(Host, std::string);
-     ASENUM_CASE_CC(Port, uint16_t);
-     ASENUM_CASE_CC(Timeout, std::chrono::seconds);
- };
- 
- 
- //===== USAGE =====
- void LogSetting(const AnySetting& setting)
- {
-     switch (setting.type())
-     {
-         case Setting::Host:
-             std::cout << "Host: " << setting.Host() << "\n";
-             break;
-         case Setting::Port:
-             std::cout << "Port: " << setting.Port()<< "\n";
-             break;
-         case Setting::Timeout:
-             std::cout << "Timeout: " << setting.Timeout().count() << "\n";
-             break;
-         default:
-             break;
-     }
- }
- 
- 
- // ===== CREATION =====
- LogSetting(AnySetting::CreateHost("test.api.com"));
- LogSetting(AnySetting::CreatePort(65535));
- LogSetting(AnySetting::CreateTimeout(std::chrono::seconds(1));
+#include <asenum/asenum.h>
+
+enum class Setting
+{
+    Host,
+    Port,
+    Timeout
+};
+
+// Declare associated enum 'AnySetting' with style of CamelCase without 'get' word in getters.
+ASENUM_DECLARE(AnySetting, Setting)
+{
+    ASENUM_DEFINE_STRUCTORS();
+    
+    ASENUM_CASE_CC(Host, std::string);
+    ASENUM_CASE_CC(Port, uint16_t);
+    ASENUM_CASE_CC(Timeout, std::chrono::seconds);
+};
+
+
+//===== USAGE =====
+void LogSetting(const AnySetting& setting)
+{
+    switch (setting.type())
+    {
+        case Setting::Host:
+            std::cout << "Host: " << setting.asHost() << "\n";
+            break;
+        case Setting::Port:
+            std::cout << "Port: " << setting.asPort()<< "\n";
+            break;
+        case Setting::Timeout:
+            std::cout << "Timeout: " << setting.asTimeout().count() << "\n";
+            break;
+        default:
+            break;
+    }
+}
+
+int main()
+{
+    // ===== CREATION =====
+    LogSetting(AnySetting::CreateHost("test.api.com"));
+    LogSetting(AnySetting::CreatePort(65535));
+    LogSetting(AnySetting::CreateTimeout(std::chrono::seconds(1)));
+	
+	return 0;
+}
 ```
 
