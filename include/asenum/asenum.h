@@ -78,8 +78,23 @@ class name: protected asenum::impl::AsEnum<enum, name>
 
 
 #define ASENUM_DEFINE_STRUCTORS() \
-public: using AsEnum::type; \
-private: using AsEnum::AsEnum
+private: \
+    using AsEnum::AsEnum; \
+    \
+    template <typename T> \
+    struct AssociatedType { using Type = T; }; \
+    \
+    template <AssociatedEnum t_type> \
+    struct CaseCast; \
+    \
+public: \
+    template <AssociatedEnum t_type> \
+    const typename CaseCast<t_type>::Type& as() const \
+    { \
+        return validatedValueOfType<typename CaseCast<t_type>::Type>(t_type); \
+    } \
+    \
+    using AsEnum::type
 
 
 /// For enums named in CamelCase style
@@ -103,8 +118,11 @@ public: \
     \
     const type& as##case() const \
     { \
-        return *reinterpret_cast<const type*>(validatedValueOfType(AssociatedEnum::case)); \
-    }
+        return validatedValueOfType<type>(AssociatedEnum::case); \
+    } \
+    \
+    template <> \
+    struct CaseCast<AssociatedEnum::case> : AssociatedType<type> {}
 
 
 namespace asenum
@@ -134,14 +152,15 @@ namespace asenum
             })
             {}
             
-            const void* validatedValueOfType(const Enum type) const
+            template <typename T>
+            const T& validatedValueOfType(const Enum type) const
             {
                 if (m_type != type)
                 {
                     throw std::invalid_argument("Trying to get value of invalid type.");
                 }
                 
-                return m_value.get();
+                return *reinterpret_cast<const T*>(m_value.get());
             }
             
         private:

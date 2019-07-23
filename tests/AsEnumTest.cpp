@@ -49,26 +49,50 @@ namespace
     };
 }
 
-TEST(AssEnum, SimpleTest)
+TEST(AssEnum, NamedGetter)
 {
-    const TestAsEnum value1 = TestAsEnum::CreateStringOpt("test");
-    const TestAsEnum value2 = TestAsEnum::CreateBoolOpt(true);
-    const TestAsEnum value3 = TestAsEnum::CreateUnknown(-100500);
-    
-    EXPECT_EQ(value1.type(), TestEnum::StringOpt);
-    EXPECT_EQ(value2.type(), TestEnum::BoolOpt);
-    EXPECT_EQ(value3.type(), TestEnum::Unknown);
-    
-    EXPECT_EQ(value1.asStringOpt(), "test");
-    EXPECT_THROW(value1.asUnknown(), std::exception);
-    EXPECT_THROW(value1.asBoolOpt(), std::exception);
-    
-    EXPECT_EQ(value2.asBoolOpt(), true);
-    EXPECT_THROW(value2.asUnknown(), std::exception);
-    EXPECT_THROW(value2.asStringOpt(), std::exception);
-    
-    EXPECT_EQ(value3.asUnknown(), -100500);
-    EXPECT_THROW(value3.asStringOpt(), std::exception);
-    EXPECT_THROW(value3.asBoolOpt(), std::exception);
-    
+	const TestAsEnum value1 = TestAsEnum::CreateStringOpt("test");
+	const TestAsEnum value2 = TestAsEnum::CreateBoolOpt(true);
+	const TestAsEnum value3 = TestAsEnum::CreateUnknown(-100500);
+	
+	EXPECT_EQ(value1.type(), TestEnum::StringOpt);
+	EXPECT_EQ(value2.type(), TestEnum::BoolOpt);
+	EXPECT_EQ(value3.type(), TestEnum::Unknown);
+	
+	EXPECT_EQ(value1.asStringOpt(), "test");
+	EXPECT_THROW(value1.asUnknown(), std::exception);
+	EXPECT_THROW(value1.asBoolOpt(), std::exception);
+	
+	EXPECT_EQ(value2.asBoolOpt(), true);
+	EXPECT_THROW(value2.asUnknown(), std::exception);
+	EXPECT_THROW(value2.asStringOpt(), std::exception);
+	
+	EXPECT_EQ(value3.asUnknown(), -100500);
+	EXPECT_THROW(value3.asStringOpt(), std::exception);
+	EXPECT_THROW(value3.asBoolOpt(), std::exception);
+	
+}
+
+TEST(AssEnum, EnumGetter)
+{
+	const TestAsEnum value1 = TestAsEnum::CreateStringOpt("test");
+	const TestAsEnum value2 = TestAsEnum::CreateBoolOpt(true);
+	const TestAsEnum value3 = TestAsEnum::CreateUnknown(-100500);
+	
+	EXPECT_EQ(value1.type(), TestEnum::StringOpt);
+	EXPECT_EQ(value2.type(), TestEnum::BoolOpt);
+	EXPECT_EQ(value3.type(), TestEnum::Unknown);
+	
+	EXPECT_EQ(value1.as<TestEnum::StringOpt>(), "test");
+	EXPECT_THROW(value1.as<TestEnum::Unknown>(), std::exception);
+	EXPECT_THROW(value1.as<TestEnum::BoolOpt>(), std::exception);
+	
+	EXPECT_EQ(value2.as<TestEnum::BoolOpt>(), true);
+	EXPECT_THROW(value2.as<TestEnum::Unknown>(), std::exception);
+	EXPECT_THROW(value2.as<TestEnum::StringOpt>(), std::exception);
+	
+	EXPECT_EQ(value3.as<TestEnum::Unknown>(), -100500);
+	EXPECT_THROW(value3.as<TestEnum::StringOpt>(), std::exception);
+	EXPECT_THROW(value3.as<TestEnum::BoolOpt>(), std::exception);
+	
 }
