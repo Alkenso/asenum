@@ -19,6 +19,7 @@ asenum combines Enum and Variant: it allows to create lighweight wrapper around 
 
 #include <string>
 #include <chrono>
+#include <iostream>
 
 enum class ErrorCode
 {
