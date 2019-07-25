@@ -14,44 +14,45 @@ asenum combines Enum and Variant: it allows to create lighweight wrapper around 
 
 ## Example
 ```
+// Header contains extended usage case
+#include <asenum/asenum.h>
+
 #include <string>
 #include <chrono>
 
-#include <asenum/asenum.h>
-
-enum class Setting
+enum class ErrorCode
 {
-    Host,
-    Port,
+    Unknown,
+    Success,
     Timeout
 };
 
-// Declare associated enum 'AnySetting' with style of CamelCase without 'get' word in getters.
-ASENUM_DECLARE(AnySetting, Setting)
+// Associate enum 'ErrorCode' with AsEnum 'AnyError'
+ASENUM_DECLARE(AnyError, ErrorCode)
 {
     ASENUM_DEFINE_STRUCTORS();
     
-    ASENUM_CASE_CC(Host, std::string);
-    ASENUM_CASE_CC(Port, uint16_t);
-    ASENUM_CASE_CC(Timeout, std::chrono::seconds);
+    ASENUM_CASE(Unknown, std::string);
+    ASENUM_CASE_VOID(Success);
+    ASENUM_CASE(Timeout, std::chrono::seconds);
 };
 
-
 //===== USAGE =====
-void LogSetting(const AnySetting& setting)
+void LogSetting(const AnyError& event)
 {
-    switch (setting.type())
+    switch (event.type())
     {
-        case Setting::Host:
-            std::cout << "Host: " << setting.asHost() << "\n";
+        case ErrorCode::Unknown:
+            std::cout << "Unknown error: " << event.asUnknown() << "\n";
             break;
-        case Setting::Port:
-            std::cout << "Port: " << setting.asPort()<< "\n";
+        case ErrorCode::Success:
+            std::cout << "Success\n";
             break;
-        case Setting::Timeout:
-            std::cout << "Timeout: " << setting.asTimeout().count() << "\n";
+        case ErrorCode::Timeout:
+            std::cout << "Timed out after: " << event.asTimeout().count() << "\n";
             break;
         default:
+            std::cout << "Default\n";
             break;
     }
 }
@@ -59,11 +60,11 @@ void LogSetting(const AnySetting& setting)
 int main()
 {
     // ===== CREATION =====
-    LogSetting(AnySetting::CreateHost("test.api.com"));
-    LogSetting(AnySetting::CreatePort(65535));
-    LogSetting(AnySetting::CreateTimeout(std::chrono::seconds(1)));
-	
-	return 0;
+    LogSetting(AnyError::createUnknown("test.api.com"));
+    LogSetting(AnyError::createSuccess());
+    LogSetting(AnyError::createTimeout(std::chrono::seconds(1)));
+    
+    return 0;
 }
 ```
 
