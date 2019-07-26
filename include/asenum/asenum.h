@@ -58,7 +58,7 @@
  };
  
  //===== USAGE =====
- void LogSetting(const AnyError& event)
+ void LogError(const AnyError& event)
  {
      event.doSwitch()
      .asCase<ErrorCode::Unknown>([] (const std::string& value) {
@@ -111,15 +111,15 @@
  int main()
  {
      // ===== CREATION =====
-     LogSetting(AnyError::createUnknown("test.api.com"));
-     LogSetting(AnyError::createSuccess());
-     LogSetting(AnyError::createTimeout(std::chrono::seconds(1)));
+     LogError(AnyError::createUnknown("test.api.com"));
+     LogError(AnyError::createSuccess());
+     LogError(AnyError::createTimeout(std::chrono::seconds(1)));
  
      //    === vs ===
  
-     LogSetting(AnyError::create<ErrorCode::Unknown>("test.api.com"));
-     LogSetting(AnyError::create<ErrorCode::Success>());
-     LogSetting(AnyError::create<ErrorCode::Timeout>(std::chrono::seconds(1)));
+     LogError(AnyError::create<ErrorCode::Unknown>("test.api.com"));
+     LogError(AnyError::create<ErrorCode::Success>());
+     LogError(AnyError::create<ErrorCode::Timeout>(std::chrono::seconds(1)));
  
      return 0;
  }
