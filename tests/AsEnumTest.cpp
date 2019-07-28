@@ -47,6 +47,10 @@ namespace
         ASENUM_CASE(StringOpt, std::string);
         ASENUM_CASE(BoolOpt, bool);
     };
+    
+    static_assert(std::is_same<TestAsEnum::UnderlyingType<TestEnum::Unknown>, int>::value, "Invalid underlying type");
+    static_assert(std::is_same<TestAsEnum::UnderlyingType<TestEnum::StringOpt>, std::string>::value, "Invalid underlying type");
+    static_assert(std::is_same<TestAsEnum::UnderlyingType<TestEnum::BoolOpt>, bool>::value, "Invalid underlying type");
 }
 
 TEST(AsEnum, NamedGetter)

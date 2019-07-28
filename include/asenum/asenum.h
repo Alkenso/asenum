@@ -146,7 +146,10 @@ private: \
     \
 public: \
     template <AssociatedEnum T_type> \
-    static ThisType create(typename CaseCast<T_type>::Type value) \
+    using UnderlyingType = typename CaseCast<T_type>::Type; \
+    \
+    template <AssociatedEnum T_type> \
+    static ThisType create(UnderlyingType<T_type> value) \
     { \
         return ThisType(T_type, std::move(value)); \
     } \
@@ -158,7 +161,7 @@ public: \
     } \
     \
     template <AssociatedEnum T_type> \
-    const typename CaseCast<T_type>::Type& as() const \
+    const UnderlyingType<T_type>& as() const \
     { \
         return validatedValueOfType<typename CaseCast<T_type>::Type>(T_type); \
     } \
