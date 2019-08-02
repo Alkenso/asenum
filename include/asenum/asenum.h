@@ -26,251 +26,124 @@
 
 #include <memory>
 
-/// Declares Associated Enum with 'name' and associates it with 'enum'
-#define ASENUM_DECLARE(name, enum) ASENUM_DECLARE_IMPL(name, enum)
-
-/// Defines Associated Enum internal stuff. Must be placed first line inside 'ASENUM_DECLARE' (see example below)
-#define ASENUM_DEFINE_STRUCTORS() ASENUM_DEFINE_STRUCTORS_IMPL()
-
-/// Defines association between enum 'case' and 'type' bound to this case
-#define ASENUM_CASE(case, type) ASENUM_CASE_IMPL(case, type)
-
-/// Defines association between enum 'case' and void type bound to this case
-#define ASENUM_CASE_VOID(case) ASENUM_CASE_VOID_IMPL(case)
-
-
-/**
- enum class ErrorCode
- {
-     Unknown,
-     Success,
-     Timeout
- };
- 
- // Associate enum 'ErrorCode' with AsEnum 'AnyError'
- ASENUM_DECLARE(AnyError, ErrorCode)
- {
-     ASENUM_DEFINE_STRUCTORS();
- 
-     ASENUM_CASE(Unknown, std::string);
-     ASENUM_CASE_VOID(Success);
-     ASENUM_CASE(Timeout, std::chrono::seconds);
- };
- 
- //===== USAGE =====
- void LogError(const AnyError& event)
- {
-     event.doSwitch()
-     .asCase<ErrorCode::Unknown>([] (const std::string& value) {
-        std::cout << "Unknown error: " << value << "\n";
-     })
-     .asCase<ErrorCode::Success>([] {
-        std::cout << "Success\n";
-     })
-     .asCase<ErrorCode::Timeout>([] (const std::chrono::seconds& value) {
-        std::cout << "Timed out after: " << value.count() << "\n";
-     })
-     .asDefault([] {
-        std::cout << "Default\n";
-     });
- 
-     //    === vs ===
- 
-     switch (event.type())
-     {
-     case ErrorCode::Unknown:
-        std::cout << "Unknown error: " << event.asUnknown() << "\n";
-        break;
-     case ErrorCode::Success:
-        std::cout << "Success\n";
-        break;
-     case ErrorCode::Timeout:
-        std::cout << "Timed out after: " << event.asTimeout().count() << "\n";
-        break;
-     default:
-        std::cout << "Default\n";
-        break;
-     }
- 
-     // === vs ===
- 
-     if (event.is<ErrorCode::Unknown>())
-     {
-        std::cout << "Unknown error: " << event.asUnknown() << "\n";
-     }
-     else if (event.is<ErrorCode::Success>())
-     {
-        std::cout << "Success\n";
-     }
-     else if (event.is<ErrorCode::Timeout>())
-     {
-        std::cout << "Timed out after: " << event.asTimeout().count() << "\n";
-     }
- }
- 
- int main()
- {
-     // ===== CREATION =====
-     LogError(AnyError::createUnknown("test.api.com"));
-     LogError(AnyError::createSuccess());
-     LogError(AnyError::createTimeout(std::chrono::seconds(1)));
- 
-     //    === vs ===
- 
-     LogError(AnyError::create<ErrorCode::Unknown>("test.api.com"));
-     LogError(AnyError::create<ErrorCode::Success>());
-     LogError(AnyError::create<ErrorCode::Timeout>(std::chrono::seconds(1)));
- 
-     return 0;
- }
- */
-
-
-
-// Private implementation details
-
-
-#define ASENUM_DECLARE_IMPL(name, enum) \
-class name: protected asenum::impl::AsEnum<enum, name>
-
-
-#define ASENUM_DEFINE_STRUCTORS_IMPL() \
-private: \
-    using AsEnum::AsEnum; \
-    \
-    template <typename T> \
-    struct AssociatedType { using Type = T; }; \
-    \
-    template <AssociatedEnum T_type> \
-    struct CaseCast; \
-    \
-public: \
-    template <AssociatedEnum T_type> \
-    using UnderlyingType = typename CaseCast<T_type>::Type; \
-    \
-    template <AssociatedEnum T_type> \
-    static ThisType create(UnderlyingType<T_type> value) \
-    { \
-        return ThisType(T_type, std::move(value)); \
-    } \
-    \
-    template <AssociatedEnum T_type> \
-    static ThisType create() \
-    { \
-        return ThisType(T_type); \
-    } \
-    \
-    template <AssociatedEnum T_type> \
-    const UnderlyingType<T_type>& as() const \
-    { \
-        return validatedValueOfType<typename CaseCast<T_type>::Type>(T_type); \
-    } \
-    \
-    asenum::impl::AsSwitch<AssociatedEnum, ThisType, CaseCast> doSwitch() const \
-    { \
-        return asenum::impl::AsSwitch<AssociatedEnum, ThisType, CaseCast>(*this); \
-    } \
-    \
-    using AsEnum::type; \
-    using AsEnum::is
-
-
-#define ASENUM_CASE_IMPL(case, type) \
-public: \
-    static ThisType create##case(type value) \
-    { \
-        return create<AssociatedEnum::case>(std::move(value)); \
-    } \
-    \
-    const type& as##case() const \
-    { \
-        return validatedValueOfType<type>(AssociatedEnum::case); \
-    } \
-    \
-    bool is##case() const \
-    { \
-        return is<AssociatedEnum::case>(); \
-    } \
-    \
-    template <> \
-    struct CaseCast<AssociatedEnum::case> : AssociatedType<type> {}
-
-
-#define ASENUM_CASE_VOID_IMPL(case) \
-public: \
-    static ThisType create##case() \
-    { \
-        return create<AssociatedEnum::case>(); \
-    } \
-    \
-    bool is##case() const \
-    { \
-        return is<AssociatedEnum::case>(); \
-    } \
-    \
-    template <> \
-    struct CaseCast<AssociatedEnum::case> : AssociatedType<void> {}
-
-
 namespace asenum
 {
-    namespace impl
+    /**
+     @class Case descriptor of single Associated Enum case.
+     */
+    template <typename T_Enum, T_Enum T_Code, typename T>
+    struct Case11
     {
-        template <typename Enum, typename ConcreteType>
-        class AsEnum
-        {
-        public:
-            using AssociatedEnum = Enum;
-            using ThisType = ConcreteType;
-            
-            template <typename T>
-            AsEnum(const AssociatedEnum type, T&& value)
-            : m_type(type)
-            , m_value(new T(std::forward<T>(value)), [] (void* ptr) {
-                if (ptr)
-                {
-                    delete reinterpret_cast<T*>(ptr);
-                }
-            })
-            {}
-            
-            AsEnum(const AssociatedEnum type)
-            : m_type(type)
-            {}
-            
-            AssociatedEnum type() const
-            {
-                return m_type;
-            }
-            
-            template <AssociatedEnum T_type>
-            bool is() const
-            {
-                return type() == T_type;
-            }
-            
-            template <typename T>
-            const T& validatedValueOfType(const AssociatedEnum type) const
-            {
-                if (m_type != type)
-                {
-                    throw std::invalid_argument("Trying to get value of invalid type.");
-                }
-                
-                if (!m_value)
-                {
-                    throw std::logic_error("Trying to get value of void associated type.");
-                }
-                
-                return *reinterpret_cast<const T*>(m_value.get());
-            }
-            
-        private:
-            const AssociatedEnum m_type;
-            const std::shared_ptr<void> m_value;
-        };
+        using Enum = T_Enum;
+        static constexpr Enum Code = T_Code;
+        using Type = T;
+    };
+    
+#if __cplusplus > 201402L
+    /**
+     @class Case descriptor of single Associated Enum case. Convenient use with C++17 compiler.
+     */
+    template <auto T_Code, typename T>
+    using Case = Case11<decltype(T_Code), T_Code, T>;
+#endif
+    
+    namespace details
+    {
+        template <typename... Cases>
+        struct CaseSet;
         
-        template <typename Enum, typename ConcreteType, template <Enum t_type> class CaseCast, Enum... types>
+        template <typename Enum, Enum Value, typename... Cases>
+        struct UnderlyingTypeResolver;
+        
+        template <typename Enum, typename ConcreteAsEnum, Enum... types>
+        class AsSwitch;
+    }
+    
+    /**
+     @class Associated Enum type.
+     AsEnum should be specialized with single or multiple 'Case/Case11' types that represent associations.
+     */
+    template <typename... T_Cases>
+    class AsEnum
+    {
+    public:
+        /// Related enum type.
+        using Enum = typename details::CaseSet<T_Cases...>::Enum;
+        
+        /// Specific 'using' that allows to get accociated type with specific enum case.
+        template <Enum C>
+        using UnderlyingType = typename details::UnderlyingTypeResolver<Enum, C, T_Cases...>::type;
+        
+        /// Array of all cases used associated with concrete AsEnum.
+        static constexpr Enum AllCases[] = { T_Cases::Code... };
+        
+        /**
+         Creates AsEnum instance of specific case.
+         @param value Value related to specified enum case.
+         @return AsEnum instance holding value of specified case.
+         */
+        template <Enum Case, typename T = typename std::enable_if<!std::is_same<UnderlyingType<Case>, void>::value>::type>
+        static AsEnum create(T value);
+        
+        /**
+         Creates AsEnum instance of specific case with 'void' associated type.
+         @return AsEnum instance holding value of specified case.
+         */
+        template <Enum Case, typename T = typename std::enable_if<std::is_same<UnderlyingType<Case>, void>::value>::type>
+        static AsEnum create();
+        
+        /**
+         @return enum case of current instance of AsEnum.
+         */
+        Enum enumCase() const;
+        
+        /**
+         @return Boolean indicates if current instance of AsEnum holds exactly specified case...or not.
+         */
+        template <Enum Case>
+        bool isCase() const;
+        
+#error add example
+        /**
+         Unwraps AsEnum and provides access to value that it holds.
+         
+         @param handler Function or functional object of signature void(UnderlyingType<Case>)
+         that accepts value/reference of type associated with specified case.
+         @return Boolean indicates if handler has been called.
+         */
+        template <Enum Case, typename Handler>
+        bool ifCase(const Handler& handler) const;
+        
+#error add example
+        /**
+         Performs switch-like action allowing to wotk with values of different cases.
+         
+         */
+        details::AsSwitch<Enum, AsEnum<T_Cases...>> doSwitch() const;
+        
+    private:
+        template <typename T, typename RealT = typename std::remove_reference<T>::type>
+        AsEnum(const Enum relatedCase, T&& value);
+        
+        explicit AsEnum(const Enum relatedCase);
+        
+        template <typename T, typename Handler>
+        static typename std::enable_if<std::is_same<T, void>::value, void>::type call(const void*, const Handler& handler);
+        
+        template <typename T, typename Handler>
+        static typename std::enable_if<!std::is_same<T, void>::value, void>::type call(const void* value, const Handler& handler);
+        
+    private:
+        const Enum m_enumCase;
+        const std::shared_ptr<void> m_value;
+    };
+    
+    
+    // Private details
+    
+    namespace details
+    {
+        template <typename Enum, typename ConcreteAsEnum, Enum... Types>
         class AsSwitch
         {
             template<Enum...> struct Contains;
@@ -280,60 +153,186 @@ namespace asenum
             template<Enum T_type1, Enum T_type2, Enum... T_other>
             struct Contains<T_type1, T_type2, T_other...> { static const bool value = Contains<T_type1, T_type2>::value || Contains<T_type2, T_other...>::value; };
             
-            template <Enum T_type, typename Handler, bool isVoid>
-            struct HandlerCaller;
-            
-            template <Enum T_type, typename Handler>
-            struct HandlerCaller<T_type, Handler, true>
-            {
-                static void call(const ConcreteType&, const Handler& handler)
-                {
-                    handler();
-                }
-            };
-            
-            template <Enum T_type, typename Handler>
-            struct HandlerCaller<T_type, Handler, false>
-            {
-                static void call(const ConcreteType& asEnum, const Handler& handler)
-                {
-                    handler(asEnum.template as<T_type>());
-                }
-            };
-            
         public:
-            AsSwitch(const ConcreteType& asEnum, const bool handled) : m_asEnum(asEnum), m_handled(handled) {}
-            explicit AsSwitch(const ConcreteType& asEnum) : AsSwitch(asEnum, false) {}
+            AsSwitch(const ConcreteAsEnum& asEnum, const bool handled);
+            explicit AsSwitch(const ConcreteAsEnum& asEnum);
             
             template <Enum T_type, typename CaseHandler>
-            AsSwitch<Enum, ConcreteType, CaseCast, T_type, types...> asCase(const CaseHandler& handler)
-            {
-                static_assert(!Contains<T_type, types...>::value, "Duplicated switch case");
-                
-                if (!m_handled && T_type == m_asEnum.type())
-                {
-                    m_handled = true;
-                    
-                    constexpr bool isVoid = std::is_same<typename CaseCast<T_type>::Type, void>::value;
-                    HandlerCaller<T_type, CaseHandler, isVoid>::call(m_asEnum, handler);
-                }
-                
-                return AsSwitch<Enum, ConcreteType, CaseCast, T_type, types...>(m_asEnum, m_handled);
-            }
+            AsSwitch<Enum, ConcreteAsEnum, T_type, Types...> ifCase(const CaseHandler& handler);
             
             template <typename Handler>
-            void asDefault(const Handler& handler)
-            {
-                if (!m_handled)
-                {
-                    m_handled = true;
-                    handler();
-                }
-            }
+            void ifDefault(const Handler& handler);
             
         private:
-            const ConcreteType& m_asEnum;
+            const ConcreteAsEnum& m_asEnum;
             bool m_handled;
         };
+        
+        
+        template <typename Case>
+        struct CaseSet<Case>
+        {
+            using Enum = typename Case::Enum;
+            static_assert(std::is_enum<Enum>::value, "All cases must relate to enum values.");
+        };
+        
+        template <typename Case, typename... Cases>
+        struct CaseSet<Case, Cases...>
+        {
+            static_assert(std::is_same<typename CaseSet<Case>::Enum, typename CaseSet<Cases...>::Enum>::value, "All cases must relate to the same enum.");
+            using Enum = typename CaseSet<Cases...>::Enum;
+        };
+        
+        
+        template <typename Enum, Enum Value, typename... Cases>
+        struct UnderlyingTypeResolver
+        {
+            template <Enum E, typename Default, typename... Args>
+            struct TypeMap;
+            
+            template <Enum E, typename Default, typename T, typename... Args>
+            struct TypeMap<E, Default, T, Args...>
+            {
+                using type = typename std::conditional<E == T::Code, typename T::Type, typename TypeMap<E, Default, Args...>::type>::type;
+            };
+            
+            template <Enum E, typename Default, typename T>
+            struct TypeMap<E, Default, T>
+            {
+                using type = typename std::conditional<E == T::Code, typename T::Type, Default>::type;
+            };
+            
+            
+            struct Dummy {};
+            using type = typename TypeMap<Value, Dummy, Cases...>::type;
+            static_assert(!std::is_same<type, Dummy>::value, "Type is missing for specified enum value.");
+        };
+        
+    }
+}
+
+
+// AsEnum public
+
+template <typename... T_Cases>
+constexpr typename asenum::AsEnum<T_Cases...>::Enum asenum::AsEnum<T_Cases...>::AllCases[];
+
+template <typename... T_Cases>
+template <typename asenum::AsEnum<T_Cases...>::Enum Case, typename T>
+asenum::AsEnum<T_Cases...> asenum::AsEnum<T_Cases...>::create(T value)
+{
+    return asenum::AsEnum<T_Cases...>(Case, value);
+}
+
+template <typename... T_Cases>
+template <typename asenum::AsEnum<T_Cases...>::Enum Case, typename T>
+asenum::AsEnum<T_Cases...> asenum::AsEnum<T_Cases...>::create()
+{
+    return asenum::AsEnum<T_Cases...>(Case);
+}
+
+template <typename... T_Cases>
+typename asenum::AsEnum<T_Cases...>::Enum asenum::AsEnum<T_Cases...>::enumCase() const
+{
+    return m_enumCase;
+}
+
+template <typename... T_Cases>
+template <typename asenum::AsEnum<T_Cases...>::Enum Case>
+bool asenum::AsEnum<T_Cases...>::isCase() const
+{
+    return Case == m_enumCase;
+}
+
+template <typename... T_Cases>
+template <typename asenum::AsEnum<T_Cases...>::Enum Case, typename Handler>
+bool asenum::AsEnum<T_Cases...>::ifCase(const Handler& handler) const
+{
+    const bool isType = isCase<Case>();
+    if (isType)
+    {
+        call<UnderlyingType<Case>>(m_value.get(), handler);
+    }
+    
+    return isType;
+}
+
+template <typename... T_Cases>
+asenum::details::AsSwitch<typename asenum::AsEnum<T_Cases...>::Enum, asenum::AsEnum<T_Cases...>> asenum::AsEnum<T_Cases...>::doSwitch() const
+{
+    return details::AsSwitch<Enum, AsEnum<T_Cases...>>(*this);
+}
+
+
+// AsEnum private
+
+template <typename... T_Cases>
+template <typename T, typename RealT>
+asenum::AsEnum<T_Cases...>::AsEnum(const Enum relatedCase, T&& value)
+: m_enumCase(relatedCase)
+, m_value(new RealT(std::forward<T>(value)), [] (void* ptr) {
+    if (ptr)
+    {
+        delete reinterpret_cast<RealT*>(ptr);
+    }
+})
+{}
+
+template <typename... T_Cases>
+asenum::AsEnum<T_Cases...>::AsEnum(const Enum relatedCase)
+: m_enumCase(relatedCase)
+, m_value(nullptr)
+{}
+
+template <typename... T_Cases>
+template <typename T, typename Handler>
+typename std::enable_if<std::is_same<T, void>::value, void>::type asenum::AsEnum<T_Cases...>::call(const void*, const Handler& handler)
+{
+    handler();
+}
+
+template <typename... T_Cases>
+template <typename T, typename Handler>
+typename std::enable_if<!std::is_same<T, void>::value, void>::type asenum::AsEnum<T_Cases...>::call(const void* value, const Handler& handler)
+{
+    handler(*reinterpret_cast<const T*>(value));
+}
+
+
+// Private details
+
+template <typename Enum, typename ConcreteAsEnum, Enum... Types>
+asenum::details::AsSwitch<Enum, ConcreteAsEnum, Types...>::AsSwitch(const ConcreteAsEnum& asEnum, const bool handled)
+: m_asEnum(asEnum)
+, m_handled(handled)
+{}
+
+template <typename Enum, typename ConcreteAsEnum, Enum... Types>
+asenum::details::AsSwitch<Enum, ConcreteAsEnum, Types...>::AsSwitch(const ConcreteAsEnum& asEnum)
+: AsSwitch(asEnum, false)
+{}
+
+template <typename Enum, typename ConcreteAsEnum, Enum... Types>
+template <Enum T_type, typename CaseHandler>
+asenum::details::AsSwitch<Enum, ConcreteAsEnum, T_type, Types...> asenum::details::AsSwitch<Enum, ConcreteAsEnum, Types...>::ifCase(const CaseHandler& handler)
+{
+    static_assert(!Contains<T_type, Types...>::value, "Duplicated switch case");
+    
+    if (!m_handled)
+    {
+        m_handled = m_asEnum.template ifCase<T_type>(handler);
+    }
+    
+    return AsSwitch<Enum, ConcreteAsEnum, T_type, Types...>(m_asEnum, m_handled);
+}
+
+template <typename Enum, typename ConcreteAsEnum, Enum... Types>
+template <typename Handler>
+void asenum::details::AsSwitch<Enum, ConcreteAsEnum, Types...>::ifDefault(const Handler& handler)
+{
+    if (!m_handled)
+    {
+        m_handled = true;
+        handler();
     }
 }
