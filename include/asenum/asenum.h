@@ -82,8 +82,8 @@ namespace asenum
          @param value Value related to specified enum case.
          @return AsEnum instance holding value of specified case.
          */
-        template <Enum Case, typename T = typename std::enable_if<!std::is_same<UnderlyingType<Case>, void>::value>::type>
-        static AsEnum create(T value);
+        template <Enum Case, typename U = typename std::enable_if<!std::is_same<UnderlyingType<Case>, void>::value>::type>
+        static AsEnum create(UnderlyingType<Case> value) { return createImpl<Case, UnderlyingType<Case>>(std::move(value)); }
         
         /**
          Creates AsEnum instance of specific case with 'void' associated type.
@@ -103,7 +103,7 @@ namespace asenum
         template <Enum Case>
         bool isCase() const;
         
-#error add example
+//#error add example
         /**
          Unwraps AsEnum and provides access to value that it holds.
          
@@ -114,7 +114,7 @@ namespace asenum
         template <Enum Case, typename Handler>
         bool ifCase(const Handler& handler) const;
         
-#error add example
+//#error add example
         /**
          Performs switch-like action allowing to wotk with values of different cases.
          
@@ -122,10 +122,10 @@ namespace asenum
         details::AsSwitch<Enum, AsEnum<T_Cases...>> doSwitch() const;
         
     private:
-        template <typename T, typename RealT = typename std::remove_reference<T>::type>
-        AsEnum(const Enum relatedCase, T&& value);
+        AsEnum(const Enum relatedCase, std::shared_ptr<void> value);
         
-        explicit AsEnum(const Enum relatedCase);
+        template <Enum Case, typename T>
+        static AsEnum createImpl(T&& value);
         
         template <typename T, typename Handler>
         static typename std::enable_if<std::is_same<T, void>::value, void>::type call(const void*, const Handler& handler);
@@ -219,16 +219,23 @@ constexpr typename asenum::AsEnum<T_Cases...>::Enum asenum::AsEnum<T_Cases...>::
 
 template <typename... T_Cases>
 template <typename asenum::AsEnum<T_Cases...>::Enum Case, typename T>
-asenum::AsEnum<T_Cases...> asenum::AsEnum<T_Cases...>::create(T value)
+asenum::AsEnum<T_Cases...> asenum::AsEnum<T_Cases...>::createImpl(T&& value)
 {
-    return asenum::AsEnum<T_Cases...>(Case, value);
+    std::shared_ptr<void> internalValue(new T(std::forward<T>(value)), [] (void* ptr) {
+        if (ptr)
+        {
+            delete reinterpret_cast<T*>(ptr);
+        }
+    });
+    
+    return asenum::AsEnum<T_Cases...>(Case, internalValue);
 }
 
 template <typename... T_Cases>
 template <typename asenum::AsEnum<T_Cases...>::Enum Case, typename T>
 asenum::AsEnum<T_Cases...> asenum::AsEnum<T_Cases...>::create()
 {
-    return asenum::AsEnum<T_Cases...>(Case);
+    return asenum::AsEnum<T_Cases...>(Case, nullptr);
 }
 
 template <typename... T_Cases>
@@ -267,21 +274,9 @@ asenum::details::AsSwitch<typename asenum::AsEnum<T_Cases...>::Enum, asenum::AsE
 // AsEnum private
 
 template <typename... T_Cases>
-template <typename T, typename RealT>
-asenum::AsEnum<T_Cases...>::AsEnum(const Enum relatedCase, T&& value)
+asenum::AsEnum<T_Cases...>::AsEnum(const Enum relatedCase, std::shared_ptr<void> value)
 : m_enumCase(relatedCase)
-, m_value(new RealT(std::forward<T>(value)), [] (void* ptr) {
-    if (ptr)
-    {
-        delete reinterpret_cast<RealT*>(ptr);
-    }
-})
-{}
-
-template <typename... T_Cases>
-asenum::AsEnum<T_Cases...>::AsEnum(const Enum relatedCase)
-: m_enumCase(relatedCase)
-, m_value(nullptr)
+, m_value(value)
 {}
 
 template <typename... T_Cases>

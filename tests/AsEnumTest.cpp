@@ -24,7 +24,7 @@
 
 #include <asenum/asenum.h>
 
-#include <gtest/gtest.h>
+#include <gmock/gmock.h>
 
 #include <string>
 
@@ -36,129 +36,131 @@ namespace
     {
         Unknown,
         StringOpt,
-        BoolOpt
+        VoidOpt
     };
     
-    ASENUM_DECLARE(TestAsEnum, TestEnum)
-    {
-        ASENUM_DEFINE_STRUCTORS();
-
-        ASENUM_CASE(Unknown, int);
-        ASENUM_CASE(StringOpt, std::string);
-        ASENUM_CASE(BoolOpt, bool);
-    };
+    using TestAsEnum = asenum::AsEnum<
+    asenum::Case11<TestEnum, TestEnum::Unknown, int>,
+    asenum::Case11<TestEnum, TestEnum::StringOpt, std::string>,
+    asenum::Case11<TestEnum, TestEnum::VoidOpt, void>
+    >;
     
     static_assert(std::is_same<TestAsEnum::UnderlyingType<TestEnum::Unknown>, int>::value, "Invalid underlying type");
     static_assert(std::is_same<TestAsEnum::UnderlyingType<TestEnum::StringOpt>, std::string>::value, "Invalid underlying type");
-    static_assert(std::is_same<TestAsEnum::UnderlyingType<TestEnum::BoolOpt>, bool>::value, "Invalid underlying type");
+    static_assert(std::is_same<TestAsEnum::UnderlyingType<TestEnum::VoidOpt>, void>::value, "Invalid underlying type");
+    
+    static_assert(GTEST_ARRAY_SIZE_(TestAsEnum::AllCases) == 3, "Invalid number of cases");
+    static_assert(TestAsEnum::AllCases[0] == TestEnum::Unknown, "Invalid enum case");
+    static_assert(TestAsEnum::AllCases[1] == TestEnum::StringOpt, "Invalid enum case");
+    static_assert(TestAsEnum::AllCases[2] == TestEnum::VoidOpt, "Invalid enum case");
 }
 
-TEST(AsEnum, NamedGetter)
-{
-	const TestAsEnum value1 = TestAsEnum::createStringOpt("test");
-	const TestAsEnum value2 = TestAsEnum::createBoolOpt(true);
-	const TestAsEnum value3 = TestAsEnum::createUnknown(-100500);
-	
-	EXPECT_EQ(value1.type(), TestEnum::StringOpt);
-	EXPECT_EQ(value2.type(), TestEnum::BoolOpt);
-	EXPECT_EQ(value3.type(), TestEnum::Unknown);
-	
-	EXPECT_EQ(value1.asStringOpt(), "test");
-	EXPECT_THROW(value1.asUnknown(), std::exception);
-	EXPECT_THROW(value1.asBoolOpt(), std::exception);
-	
-	EXPECT_EQ(value2.asBoolOpt(), true);
-	EXPECT_THROW(value2.asUnknown(), std::exception);
-	EXPECT_THROW(value2.asStringOpt(), std::exception);
-	
-	EXPECT_EQ(value3.asUnknown(), -100500);
-	EXPECT_THROW(value3.asStringOpt(), std::exception);
-	EXPECT_THROW(value3.asBoolOpt(), std::exception);
-	
-}
-
-TEST(AsEnum, EnumGetter)
+TEST(AsEnum, IfCase)
 {
     const TestAsEnum value1 = TestAsEnum::create<TestEnum::StringOpt>("test");
-    const TestAsEnum value2 = TestAsEnum::create<TestEnum::BoolOpt>(true);
+    const TestAsEnum value2 = TestAsEnum::create<TestEnum::VoidOpt>();
     const TestAsEnum value3 = TestAsEnum::create<TestEnum::Unknown>(-100500);
     
-    EXPECT_EQ(value1.type(), TestEnum::StringOpt);
-    EXPECT_EQ(value2.type(), TestEnum::BoolOpt);
-    EXPECT_EQ(value3.type(), TestEnum::Unknown);
+    MockFunction<void(std::string)> handler1;
+    MockFunction<void(void)> handler2;
+    MockFunction<void(int)> handler3;
     
-    EXPECT_EQ(value1.as<TestEnum::StringOpt>(), "test");
-    EXPECT_THROW(value1.as<TestEnum::Unknown>(), std::exception);
-    EXPECT_THROW(value1.as<TestEnum::BoolOpt>(), std::exception);
+    EXPECT_CALL(handler1, Call("test"))
+    .WillOnce(Return());
+    EXPECT_CALL(handler2, Call())
+    .WillOnce(Return());
+    EXPECT_CALL(handler3, Call(-100500))
+    .WillOnce(Return());
     
-    EXPECT_EQ(value2.as<TestEnum::BoolOpt>(), true);
-    EXPECT_THROW(value2.as<TestEnum::Unknown>(), std::exception);
-    EXPECT_THROW(value2.as<TestEnum::StringOpt>(), std::exception);
+    EXPECT_TRUE(value1.ifCase<TestEnum::StringOpt>(handler1.AsStdFunction()));
+    EXPECT_FALSE(value1.ifCase<TestEnum::VoidOpt>(handler2.AsStdFunction()));
+    EXPECT_FALSE(value1.ifCase<TestEnum::Unknown>(handler3.AsStdFunction()));
     
-    EXPECT_EQ(value3.as<TestEnum::Unknown>(), -100500);
-    EXPECT_THROW(value3.as<TestEnum::StringOpt>(), std::exception);
-    EXPECT_THROW(value3.as<TestEnum::BoolOpt>(), std::exception);
+    EXPECT_FALSE(value2.ifCase<TestEnum::StringOpt>(handler1.AsStdFunction()));
+    EXPECT_TRUE(value2.ifCase<TestEnum::VoidOpt>(handler2.AsStdFunction()));
+    EXPECT_FALSE(value2.ifCase<TestEnum::Unknown>(handler3.AsStdFunction()));
     
+    EXPECT_FALSE(value3.ifCase<TestEnum::StringOpt>(handler1.AsStdFunction()));
+    EXPECT_FALSE(value3.ifCase<TestEnum::VoidOpt>(handler2.AsStdFunction()));
+    EXPECT_TRUE(value3.ifCase<TestEnum::Unknown>(handler3.AsStdFunction()));
 }
 
-TEST(AsEnum, Is)
+TEST(AsEnum, IsCase)
 {
-    const TestAsEnum value = TestAsEnum::create<TestEnum::StringOpt>("test");
+    const TestAsEnum value1 = TestAsEnum::create<TestEnum::StringOpt>("test");
+    const TestAsEnum value2 = TestAsEnum::create<TestEnum::VoidOpt>();
+    const TestAsEnum value3 = TestAsEnum::create<TestEnum::Unknown>(-100500);
     
-    EXPECT_TRUE(value.is<TestEnum::StringOpt>());
-    EXPECT_TRUE(value.isStringOpt());
+    EXPECT_EQ(value1.enumCase(), TestEnum::StringOpt);
+    EXPECT_EQ(value2.enumCase(), TestEnum::VoidOpt);
+    EXPECT_EQ(value3.enumCase(), TestEnum::Unknown);
     
-    EXPECT_FALSE(value.is<TestEnum::Unknown>());
-    EXPECT_FALSE(value.isUnknown());
+    EXPECT_TRUE(value1.isCase<TestEnum::StringOpt>());
+    EXPECT_FALSE(value1.isCase<TestEnum::VoidOpt>());
+    EXPECT_FALSE(value1.isCase<TestEnum::Unknown>());
     
-    EXPECT_FALSE(value.is<TestEnum::BoolOpt>());
-    EXPECT_FALSE(value.isBoolOpt());
+    EXPECT_FALSE(value2.isCase<TestEnum::StringOpt>());
+    EXPECT_TRUE(value2.isCase<TestEnum::VoidOpt>());
+    EXPECT_FALSE(value2.isCase<TestEnum::Unknown>());
+    
+    EXPECT_FALSE(value3.isCase<TestEnum::StringOpt>());
+    EXPECT_FALSE(value3.isCase<TestEnum::VoidOpt>());
+    EXPECT_TRUE(value3.isCase<TestEnum::Unknown>());
 }
 
 TEST(AsEnum, Switch_Full)
 {
-    const TestAsEnum value1 = TestAsEnum::createStringOpt("test");
+    const TestAsEnum value = TestAsEnum::create<TestEnum::StringOpt>("test");
     
-    value1.doSwitch()
-    .asCase<TestEnum::StringOpt>([] (const std::string& value) {
-        EXPECT_EQ(value, "test");
-    })
-    .asCase<TestEnum::BoolOpt>([] (const bool& value) {
+    MockFunction<void(std::string)> handler;
+    
+    EXPECT_CALL(handler, Call("test"))
+    .WillOnce(Return());
+    
+    value.doSwitch()
+    .ifCase<TestEnum::StringOpt>(handler.AsStdFunction())
+    .ifCase<TestEnum::VoidOpt>([] {
         EXPECT_TRUE(false);
     })
-    .asCase<TestEnum::Unknown>([] (const int& value) {
+    .ifCase<TestEnum::Unknown>([] (const int& value) {
         EXPECT_TRUE(false);
     })
-    .asDefault([] () {
+    .ifDefault([] () {
         EXPECT_TRUE(false);
     });
 }
 
 TEST(AsEnum, Switch_Partial)
 {
-    const TestAsEnum value1 = TestAsEnum::createStringOpt("test");
+    const TestAsEnum value = TestAsEnum::create<TestEnum::StringOpt>("test");
     
-    value1.doSwitch()
-    .asCase<TestEnum::StringOpt>([] (const std::string& value) {
-        EXPECT_EQ(value, "test");
-    })
-    .asCase<TestEnum::BoolOpt>([] (const bool& value) {
+    MockFunction<void(std::string)> handler;
+    
+    EXPECT_CALL(handler, Call("test"))
+    .WillOnce(Return());
+    
+    value.doSwitch()
+    .ifCase<TestEnum::StringOpt>(handler.AsStdFunction())
+    .ifCase<TestEnum::VoidOpt>([] {
         EXPECT_TRUE(false);
     });
 }
 
 TEST(AsEnum, Switch_Default)
 {
-    const TestAsEnum value1 = TestAsEnum::createStringOpt("test");
+    const TestAsEnum value = TestAsEnum::create<TestEnum::StringOpt>("test");
     
-    value1.doSwitch()
-    .asCase<TestEnum::Unknown>([] (const int& value) {
+    MockFunction<void(void)> handler;
+    
+    EXPECT_CALL(handler, Call())
+    .WillOnce(Return());
+    
+    value.doSwitch()
+    .ifCase<TestEnum::Unknown>([] (const int& value) {
         EXPECT_TRUE(false);
     })
-    .asCase<TestEnum::BoolOpt>([] (const bool& value) {
+    .ifCase<TestEnum::VoidOpt>([] {
         EXPECT_TRUE(false);
     })
-    .asDefault([] () {
-        EXPECT_TRUE(true);
-    });;
+    .ifDefault(handler.AsStdFunction());
 }
