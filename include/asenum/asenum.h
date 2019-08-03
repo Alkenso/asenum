@@ -79,6 +79,7 @@ namespace asenum
         
         /**
          Creates AsEnum instance of specific case.
+         
          @param value Value related to specified enum case.
          @return AsEnum instance holding value of specified case.
          */
@@ -87,6 +88,7 @@ namespace asenum
         
         /**
          Creates AsEnum instance of specific case with 'void' associated type.
+         
          @return AsEnum instance holding value of specified case.
          */
         template <Enum Case, typename T = typename std::enable_if<std::is_same<UnderlyingType<Case>, void>::value>::type>
@@ -103,7 +105,6 @@ namespace asenum
         template <Enum Case>
         bool isCase() const;
         
-//#error add example
         /**
          Unwraps AsEnum and provides access to value that it holds.
          
@@ -114,10 +115,8 @@ namespace asenum
         template <Enum Case, typename Handler>
         bool ifCase(const Handler& handler) const;
         
-//#error add example
         /**
          Performs switch-like action allowing to wotk with values of different cases.
-         
          */
         details::AsSwitch<Enum, AsEnum<T_Cases...>> doSwitch() const;
         
