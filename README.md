@@ -14,13 +14,14 @@ asenum combines Enum and Variant: it allows to create lighweight wrapper around 
 
 ## Example
 ```
-// Header contains extended usage case
+// For more examples see tests
 #include <asenum/asenum.h>
 
 #include <string>
 #include <chrono>
 #include <iostream>
 
+// ===== DECLARATION =====
 enum class ErrorCode
 {
     Unknown,
@@ -29,41 +30,36 @@ enum class ErrorCode
 };
 
 // Associate enum 'ErrorCode' with AsEnum 'AnyError'
-ASENUM_DECLARE(AnyError, ErrorCode)
-{
-    ASENUM_DEFINE_STRUCTORS();
-    
-    ASENUM_CASE(Unknown, std::string);
-    ASENUM_CASE_VOID(Success);
-    ASENUM_CASE(Timeout, std::chrono::seconds);
-};
+using AnyError = asenum::AsEnum<
+asenum::Case11<ErrorCode, ErrorCode::Unknown, std::string>,
+asenum::Case11<ErrorCode, ErrorCode::Success, void>,
+asenum::Case11<ErrorCode, ErrorCode::Timeout, std::chrono::seconds>
+>;
 
-//===== USAGE =====
+// ===== USAGE =====
 void LogSetting(const AnyError& event)
 {
-    switch (event.type())
-    {
-        case ErrorCode::Unknown:
-            std::cout << "Unknown error: " << event.asUnknown() << "\n";
-            break;
-        case ErrorCode::Success:
-            std::cout << "Success\n";
-            break;
-        case ErrorCode::Timeout:
-            std::cout << "Timed out after: " << event.asTimeout().count() << "\n";
-            break;
-        default:
-            std::cout << "Default\n";
-            break;
-    }
+    event.doSwitch()
+    .ifCase<ErrorCode::Unknown>([] (const std::string& value) {
+        std::cout << "Unknown error: " << value << "\n";
+    })
+    .ifCase<ErrorCode::Success>([] {
+        std::cout << "Success\n";
+    })
+    .ifCase<ErrorCode::Timeout>([] (const std::chrono::seconds& value) {
+        std::cout << "Timed out after: " << value.count() << "\n";
+    })
+    .ifDefault([] {
+        std::cout << "Default\n";
+    });
 }
 
 int main()
 {
     // ===== CREATION =====
-    LogSetting(AnyError::createUnknown("test.api.com"));
-    LogSetting(AnyError::createSuccess());
-    LogSetting(AnyError::createTimeout(std::chrono::seconds(1)));
+    LogSetting(AnyError::create<ErrorCode::Unknown>("test.api.com"));
+    LogSetting(AnyError::create<ErrorCode::Success>());
+    LogSetting(AnyError::create<ErrorCode::Timeout>(std::chrono::seconds(1)));
     
     return 0;
 }
