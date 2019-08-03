@@ -8,8 +8,8 @@ asenum combines Enum and Variant: it allows to create lighweight wrapper around 
 ## Features
 - each enum case can be associated with different type
 - values are immutable: totally thread-safe
-- simple and powerful interface
-- lightweight header-only single file library
+- simple interface
+- lightweight, header-only, single file library
 - requires only C++11
 
 ## Example
