@@ -164,3 +164,39 @@ TEST(AsEnum, Switch_Default)
     })
     .ifDefault(handler.AsStdFunction());
 }
+
+TEST(AsEnum, Map1)
+{
+    const TestAsEnum value = TestAsEnum::create<TestEnum::StringOpt>("test");
+    
+    const bool vv = value.doMap<bool>()
+    .ifCase<TestEnum::StringOpt>([] (const std::string& value) {
+        return true;
+    })
+    .ifCase<TestEnum::VoidOpt>([] {
+        return false;
+    })
+    .ifDefault([] {
+        return false;
+    });
+    
+    EXPECT_TRUE(vv);
+}
+
+TEST(AsEnum, Map2)
+{
+    const TestAsEnum value = TestAsEnum::create<TestEnum::StringOpt>("test");
+    
+    const bool vv = value.doMap<bool>()
+    .ifCase<TestEnum::Unknown>([] (const int& value) {
+        return false;
+    }) // AsMap<Unknown>
+    .ifCase<TestEnum::VoidOpt>([] {
+        return false;
+    }) // AsMap<VoidOpt, Unknown>
+    .ifCase<TestEnum::StringOpt>([] (const std::string& value) {
+        return true;
+    });
+
+    EXPECT_TRUE(vv);
+}
