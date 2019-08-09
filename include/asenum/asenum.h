@@ -57,6 +57,9 @@ namespace asenum
         
         template <typename Enum, typename ConcreteAsEnum, Enum... types>
         class AsSwitch;
+        
+        template <typename T, typename Enum, typename ConcreteAsEnum, Enum... Types>
+        class AsMap;
     }
     
     /**
@@ -114,11 +117,27 @@ namespace asenum
          */
         template <Enum Case, typename Handler>
         bool ifCase(const Handler& handler) const;
-        
+		
+		/**
+		 @warning Usually ou don't want to use this method. Use safer 'ifCase'.
+		 Force unwraps AsEnum and provides direct access to value that it holds.
+		 
+		 @return Const reference to underlying value.
+		 @throws std::invalid_argument exception if 'Case' doesn't correspond to stored case.
+		 */
+		template <Enum Case, typename R = UnderlyingType<Case>, typename = typename std::enable_if<!std::is_same<R, void>::value>::type>
+		const R& forceAsCase() const;
+		
         /**
          Performs switch-like action allowing to wotk with values of different cases.
          */
         details::AsSwitch<Enum, AsEnum<T_Cases...>> doSwitch() const;
+		
+		/**
+		 Maps (converts) AsEnum value depends on stored case to type 'T'.
+		 */
+        template <typename T>
+		details::AsMap<T, Enum, AsEnum<T_Cases...>> doMap() const;
         
     private:
         AsEnum(const Enum relatedCase, std::shared_ptr<void> value);
@@ -142,16 +161,54 @@ namespace asenum
     
     namespace details
     {
+		template <typename T, size_t N>
+		constexpr size_t ArraySize(T (&array)[N])
+		{
+			return sizeof(array) / sizeof(array[0]);
+		}
+        
+        template <bool IsFinalStep, typename T, typename Enum, typename ConcreteAsEnum, Enum... Types>
+        struct AsMapResultMaker;
+        
+        template <typename T, typename Enum, typename ConcreteAsEnum, Enum... Types>
+        struct AsMapResultMaker<true, T, Enum, ConcreteAsEnum, Types...>
+        {
+            template <Enum T_type>
+            static T
+            makeResult(const ConcreteAsEnum&, std::unique_ptr<T> result)
+            {
+                if (!result)
+                {
+                    throw std::logic_error("Unexpected empty result. Please contact author and attach an example.");
+                }
+                
+                return std::move(*result);
+            }
+        };
+        
+        template <typename T, typename Enum, typename ConcreteAsEnum, Enum... Types>
+        struct AsMapResultMaker<false, T, Enum, ConcreteAsEnum, Types...>
+        {
+            template <Enum T_type>
+            static AsMap<T, Enum, ConcreteAsEnum, T_type, Types...>
+            makeResult(const ConcreteAsEnum& asEnum, std::unique_ptr<T> result)
+            {
+                return AsMap<T, Enum, ConcreteAsEnum, T_type, Types...>(asEnum, std::move(result));
+            }
+        };
+		
+		
+		template<typename Enum, Enum...> struct Contains;
+		template<typename Enum, Enum T_type> struct Contains<Enum, T_type> { static const bool value = false; };
+		template<typename Enum, Enum T_type1, Enum T_type2> struct Contains<Enum, T_type1, T_type2> { static const bool value = T_type1 == T_type2; };
+		
+		template<typename Enum, Enum T_type1, Enum T_type2, Enum... T_other>
+		struct Contains<Enum, T_type1, T_type2, T_other...> { static const bool value = Contains<Enum, T_type1, T_type2>::value || Contains<Enum, T_type2, T_other...>::value; };
+		
+		
         template <typename Enum, typename ConcreteAsEnum, Enum... Types>
         class AsSwitch
         {
-            template<Enum...> struct Contains;
-            template<Enum T_type> struct Contains<T_type> { static const bool value = false; };
-            template<Enum T_type1, Enum T_type2> struct Contains<T_type1, T_type2> { static const bool value = T_type1 == T_type2; };
-            
-            template<Enum T_type1, Enum T_type2, Enum... T_other>
-            struct Contains<T_type1, T_type2, T_other...> { static const bool value = Contains<T_type1, T_type2>::value || Contains<T_type2, T_other...>::value; };
-            
         public:
             AsSwitch(const ConcreteAsEnum& asEnum, const bool handled);
             explicit AsSwitch(const ConcreteAsEnum& asEnum);
@@ -166,7 +223,43 @@ namespace asenum
             const ConcreteAsEnum& m_asEnum;
             bool m_handled;
         };
-        
+		
+		template <typename T, typename Enum, typename ConcreteAsEnum, Enum... Types>
+		class AsMap
+		{
+            static constexpr size_t AllCaseCount = ArraySize(ConcreteAsEnum::AllCases);
+            static constexpr size_t CurrentCaseCount = sizeof...(Types);
+            static constexpr bool IsPreLastCase = AllCaseCount == CurrentCaseCount + 1;
+            using ResultMaker = AsMapResultMaker<IsPreLastCase, T, Enum, ConcreteAsEnum, Types...>;
+            
+            template <Enum T_type>
+            using IfCaseResult = typename std::conditional<IsPreLastCase, T, AsMap<T, Enum, ConcreteAsEnum, T_type, Types...>>::type;
+            
+            template <Enum T_type>
+            using UnderlyingType = typename ConcreteAsEnum::template UnderlyingType<T_type>;
+            
+		public:
+			AsMap(const ConcreteAsEnum& asEnum, std::unique_ptr<T> result);
+			explicit AsMap(const ConcreteAsEnum& asEnum);
+            
+			template <Enum T_type, typename Handler, typename UT = UnderlyingType<T_type>>
+            static typename std::enable_if<std::is_same<UT, void>::value, void>::type
+			ifCaseCall(const ConcreteAsEnum& asEnum, std::unique_ptr<T>& result, const Handler& handler);
+			
+			template <Enum T_type, typename Handler, typename UT = UnderlyingType<T_type>>
+			static typename std::enable_if<!std::is_same<UT, void>::value, void>::type
+			ifCaseCall(const ConcreteAsEnum& asEnum, std::unique_ptr<T>& result, const Handler& handler);
+			
+			template <typename Handler>
+			T ifDefault(const Handler& handler);
+            
+            template <Enum T_type, typename CaseHandler, typename R = IfCaseResult<T_type>>
+			R ifCase(const CaseHandler& handler);
+            
+		private:
+			std::unique_ptr<T> m_result;
+			const ConcreteAsEnum& m_asEnum;
+		};
         
         template <typename Case>
         struct CaseSet<Case>
@@ -264,9 +357,28 @@ bool asenum::AsEnum<T_Cases...>::ifCase(const Handler& handler) const
 }
 
 template <typename... T_Cases>
+template <typename asenum::AsEnum<T_Cases...>::Enum Case, typename R, typename>
+const R& asenum::AsEnum<T_Cases...>::forceAsCase() const
+{
+	if (!isCase<Case>())
+	{
+		throw std::invalid_argument("Unwrapping case does not correspond to stored case.");
+	}
+	
+	return *reinterpret_cast<const UnderlyingType<Case>*>(m_value.get());
+}
+
+template <typename... T_Cases>
 asenum::details::AsSwitch<typename asenum::AsEnum<T_Cases...>::Enum, asenum::AsEnum<T_Cases...>> asenum::AsEnum<T_Cases...>::doSwitch() const
 {
     return details::AsSwitch<Enum, AsEnum<T_Cases...>>(*this);
+}
+
+template <typename... T_Cases>
+template <typename T>
+asenum::details::AsMap<T, typename asenum::AsEnum<T_Cases...>::Enum, asenum::AsEnum<T_Cases...>> asenum::AsEnum<T_Cases...>::doMap() const
+{
+	return details::AsMap<T, Enum, AsEnum<T_Cases...>>(*this);
 }
 
 
@@ -293,7 +405,7 @@ typename std::enable_if<!std::is_same<T, void>::value, void>::type asenum::AsEnu
 }
 
 
-// Private details
+// Private details - AsSwitch
 
 template <typename Enum, typename ConcreteAsEnum, Enum... Types>
 asenum::details::AsSwitch<Enum, ConcreteAsEnum, Types...>::AsSwitch(const ConcreteAsEnum& asEnum, const bool handled)
@@ -310,7 +422,7 @@ template <typename Enum, typename ConcreteAsEnum, Enum... Types>
 template <Enum T_type, typename CaseHandler>
 asenum::details::AsSwitch<Enum, ConcreteAsEnum, T_type, Types...> asenum::details::AsSwitch<Enum, ConcreteAsEnum, Types...>::ifCase(const CaseHandler& handler)
 {
-    static_assert(!Contains<T_type, Types...>::value, "Duplicated switch case");
+    static_assert(!Contains<Enum, T_type, Types...>::value, "Duplicated switch case.");
     
     if (!m_handled)
     {
@@ -329,4 +441,58 @@ void asenum::details::AsSwitch<Enum, ConcreteAsEnum, Types...>::ifDefault(const 
         m_handled = true;
         handler();
     }
+}
+
+// Private details - AsMap
+
+template <typename T, typename Enum, typename ConcreteAsEnum, Enum... Types>
+asenum::details::AsMap<T, Enum, ConcreteAsEnum, Types...>::AsMap(const ConcreteAsEnum& asEnum, std::unique_ptr<T> result)
+: m_result(std::move(result))
+, m_asEnum(asEnum)
+{}
+
+template <typename T, typename Enum, typename ConcreteAsEnum, Enum... Types>
+asenum::details::AsMap<T, Enum, ConcreteAsEnum, Types...>::AsMap(const ConcreteAsEnum& asEnum)
+: m_asEnum(asEnum)
+{}
+
+template <typename T, typename Enum, typename ConcreteAsEnum, Enum... Types>
+template <Enum T_type, typename Handler, typename UT>
+typename std::enable_if<std::is_same<UT, void>::value, void>::type
+asenum::details::AsMap<T, Enum, ConcreteAsEnum, Types...>::ifCaseCall(const ConcreteAsEnum& asEnum, std::unique_ptr<T>& result, const Handler& handler)
+{
+	asEnum.template ifCase<T_type>([&] {
+		result.reset(new T(handler()));
+	});
+}
+
+template <typename T, typename Enum, typename ConcreteAsEnum, Enum... Types>
+template <Enum T_type, typename Handler, typename UT>
+typename std::enable_if<!std::is_same<UT, void>::value, void>::type
+asenum::details::AsMap<T, Enum, ConcreteAsEnum, Types...>::ifCaseCall(const ConcreteAsEnum& asEnum, std::unique_ptr<T>& result, const Handler& handler)
+{
+	asEnum.template ifCase<T_type>([&] (const UT& value) {
+		result.reset(new T(handler(value)));
+	});
+}
+
+template <typename T, typename Enum, typename ConcreteAsEnum, Enum... Types>
+template <typename Handler>
+T asenum::details::AsMap<T, Enum, ConcreteAsEnum, Types...>::ifDefault(const Handler& handler)
+{
+	return m_result ? std::move(*m_result) : handler();
+}
+
+template <typename T, typename Enum, typename ConcreteAsEnum, Enum... Types>
+template <Enum T_type, typename CaseHandler, typename R>
+R asenum::details::AsMap<T, Enum, ConcreteAsEnum, Types...>::ifCase(const CaseHandler& handler)
+{
+	static_assert(!Contains<Enum, T_type, Types...>::value, "Duplicated map case");
+	
+	if (!m_result)
+	{
+		ifCaseCall<T_type>(m_asEnum, m_result, handler);
+	}
+	
+	return ResultMaker::template makeResult<T_type>(m_asEnum, std::move(m_result));
 }
