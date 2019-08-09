@@ -77,7 +77,7 @@ namespace asenum
         template <Enum C>
         using UnderlyingType = typename details::UnderlyingTypeResolver<Enum, C, T_Cases...>::type;
         
-        /// Array of all cases used associated with concrete AsEnum.
+        /// Array of all cases associated with concrete AsEnum.
         static constexpr Enum AllCases[] = { T_Cases::Code... };
         
         /**
