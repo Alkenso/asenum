@@ -165,7 +165,7 @@ TEST(AsEnum, Switch_Default)
     .ifDefault(handler.AsStdFunction());
 }
 
-TEST(AsEnum, Map1)
+TEST(AsEnum, Map_With_Default)
 {
     const TestAsEnum value = TestAsEnum::create<TestEnum::StringOpt>("test");
     
@@ -183,20 +183,33 @@ TEST(AsEnum, Map1)
     EXPECT_TRUE(vv);
 }
 
-TEST(AsEnum, Map2)
+TEST(AsEnum, Map_All_Cases)
 {
     const TestAsEnum value = TestAsEnum::create<TestEnum::StringOpt>("test");
     
     const bool vv = value.doMap<bool>()
     .ifCase<TestEnum::Unknown>([] (const int& value) {
         return false;
-    }) // AsMap<Unknown>
+    })
     .ifCase<TestEnum::VoidOpt>([] {
         return false;
-    }) // AsMap<VoidOpt, Unknown>
+    })
     .ifCase<TestEnum::StringOpt>([] (const std::string& value) {
         return true;
     });
 
     EXPECT_TRUE(vv);
+}
+
+TEST(AsEnum, ForceAsCase)
+{
+    const TestAsEnum value1 = TestAsEnum::create<TestEnum::StringOpt>("test");
+    // TestEnum::VoidOpt doesn't have 'forceAsEnum' method because associated type is 'void'.
+    const TestAsEnum value3 = TestAsEnum::create<TestEnum::Unknown>(-100500);
+	
+    EXPECT_EQ(value1.forceAsCase<TestEnum::StringOpt>(), "test");
+    EXPECT_THROW(value1.forceAsCase<TestEnum::Unknown>(), std::invalid_argument);
+	
+    EXPECT_THROW(value3.forceAsCase<TestEnum::StringOpt>(), std::invalid_argument);
+    EXPECT_EQ(value3.forceAsCase<TestEnum::Unknown>(), -100500);
 }
