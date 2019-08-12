@@ -203,13 +203,30 @@ TEST(AsEnum, Map_All_Cases)
 
 TEST(AsEnum, ForceAsCase)
 {
-    const TestAsEnum value1 = TestAsEnum::create<TestEnum::StringOpt>("test");
-    // TestEnum::VoidOpt doesn't have 'forceAsEnum' method because associated type is 'void'.
-    const TestAsEnum value3 = TestAsEnum::create<TestEnum::Unknown>(-100500);
+	const TestAsEnum value1 = TestAsEnum::create<TestEnum::StringOpt>("test");
+	// TestEnum::VoidOpt doesn't have 'forceAsEnum' method because associated type is 'void'.
+	const TestAsEnum value3 = TestAsEnum::create<TestEnum::Unknown>(-100500);
 	
-    EXPECT_EQ(value1.forceAsCase<TestEnum::StringOpt>(), "test");
-    EXPECT_THROW(value1.forceAsCase<TestEnum::Unknown>(), std::invalid_argument);
+	EXPECT_EQ(value1.forceAsCase<TestEnum::StringOpt>(), "test");
+	EXPECT_THROW(value1.forceAsCase<TestEnum::Unknown>(), std::invalid_argument);
 	
-    EXPECT_THROW(value3.forceAsCase<TestEnum::StringOpt>(), std::invalid_argument);
-    EXPECT_EQ(value3.forceAsCase<TestEnum::Unknown>(), -100500);
+	EXPECT_THROW(value3.forceAsCase<TestEnum::StringOpt>(), std::invalid_argument);
+	EXPECT_EQ(value3.forceAsCase<TestEnum::Unknown>(), -100500);
+}
+
+TEST(AsEnum, Compare)
+{
+	const TestAsEnum value1 = TestAsEnum::create<TestEnum::StringOpt>("test");
+	const TestAsEnum value2 = TestAsEnum::create<TestEnum::StringOpt>("test");
+	const TestAsEnum value3 = TestAsEnum::create<TestEnum::StringOpt>("test2");
+	const TestAsEnum value4 = TestAsEnum::create<TestEnum::VoidOpt>();
+	const TestAsEnum value5 = TestAsEnum::create<TestEnum::Unknown>(-100500);
+	
+	EXPECT_EQ(value1, value1);
+	EXPECT_EQ(value1, value2);
+	EXPECT_NE(value1, value3);
+	EXPECT_NE(value1, value4);
+	EXPECT_NE(value1, value5);
+	
+	EXPECT_EQ(value4, TestAsEnum::create<TestEnum::VoidOpt>());
 }
