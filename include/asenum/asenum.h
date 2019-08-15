@@ -25,6 +25,7 @@
 #pragma once
 
 #include <memory>
+#include <functional>
 
 namespace asenum
 {
@@ -60,11 +61,11 @@ namespace asenum
         
         template <typename T, typename Enum, typename ConcreteAsEnum, Enum... Types>
         class AsMap;
-		
-        template <typename ConcreteAsEnum, typename... T_Cases>
+        
+        template <typename ConcreteAsEnum, template <typename T> class Cmp, typename... T_Cases>
         struct Comparator;
     }
-	
+    
     /**
      @class Associated Enum type.
      AsEnum should be specialized with single or multiple 'Case/Case11' types that represent associations.
@@ -72,6 +73,8 @@ namespace asenum
     template <typename... T_Cases>
     class AsEnum
     {
+        static_assert(sizeof...(T_Cases) > 0, "Failed to instantiate AsEnum with no cases.");
+        
     public:
         /// Related enum type.
         using Enum = typename details::CaseSet<T_Cases...>::Enum;
@@ -120,41 +123,45 @@ namespace asenum
          */
         template <Enum Case, typename Handler>
         bool ifCase(const Handler& handler) const;
-		
+        
         /**
          @warning Usually ou don't want to use this method. Use safer 'ifCase'.
          Force unwraps AsEnum and provides direct access to value that it holds.
-		 
+         
          @return Const reference to underlying value.
          @throws std::invalid_argument exception if 'Case' doesn't correspond to stored case.
          */
         template <Enum Case, typename R = UnderlyingType<Case>, typename = typename std::enable_if<!std::is_same<R, void>::value>::type>
         const R& forceAsCase() const;
-		
+        
         /**
          Performs switch-like action allowing to wotk with values of different cases.
          */
         details::AsSwitch<Enum, AsEnum<T_Cases...>> doSwitch() const;
-		
+        
         /**
          Maps (converts) AsEnum value depends on stored case to type 'T'.
          */
         template <typename T>
         details::AsMap<T, Enum, AsEnum<T_Cases...>> doMap() const;
-		
+        
         /**
-         Compares two AsEnum instances. Instance meant to be equal if and only if
+         Check for equality two AsEnum instances. Instance meant to be equal if and only if
          1) Underlying enum cases are equal;
          2) Underlying values are equal.
          */
         bool operator==(const AsEnum& other) const;
-		
-        /**
-         Compares two AsEnum instances. Instance meant to be equal if and only if
-         1) Underlying enum cases are equal;
-         2) Underlying values are equal.
-         */
         bool operator!=(const AsEnum& other) const;
+        
+        /**
+         Compares two AsEnum instances.
+         1) First compare types. If types differ, applies comparison to type itself;
+         2) If types equal, compares underlying values.
+         */
+        bool operator<(const AsEnum& other) const;
+        bool operator<=(const AsEnum& other) const;
+        bool operator>(const AsEnum& other) const;
+        bool operator>=(const AsEnum& other) const;
         
     private:
         AsEnum(const Enum relatedCase, std::shared_ptr<void> value);
@@ -213,16 +220,16 @@ namespace asenum
                 return AsMap<T, Enum, ConcreteAsEnum, T_type, Types...>(asEnum, std::move(result));
             }
         };
-		
-		
+        
+        
         template<typename Enum, Enum...> struct Contains;
         template<typename Enum, Enum T_type> struct Contains<Enum, T_type> { static const bool value = false; };
         template<typename Enum, Enum T_type1, Enum T_type2> struct Contains<Enum, T_type1, T_type2> { static const bool value = T_type1 == T_type2; };
-		
+        
         template<typename Enum, Enum T_type1, Enum T_type2, Enum... T_other>
         struct Contains<Enum, T_type1, T_type2, T_other...> { static const bool value = Contains<Enum, T_type1, T_type2>::value || Contains<Enum, T_type2, T_other...>::value; };
-		
-		
+        
+        
         template <typename Enum, typename ConcreteAsEnum, Enum... Types>
         class AsSwitch
         {
@@ -240,7 +247,7 @@ namespace asenum
             const ConcreteAsEnum& m_asEnum;
             bool m_handled;
         };
-		
+        
         template <typename T, typename Enum, typename ConcreteAsEnum, Enum... Types>
         class AsMap
         {
@@ -262,11 +269,11 @@ namespace asenum
             template <Enum T_type, typename Handler, typename UT = UnderlyingType<T_type>>
             static typename std::enable_if<std::is_same<UT, void>::value, void>::type
             ifCaseCall(const ConcreteAsEnum& asEnum, std::unique_ptr<T>& result, const Handler& handler);
-			
+            
             template <Enum T_type, typename Handler, typename UT = UnderlyingType<T_type>>
             static typename std::enable_if<!std::is_same<UT, void>::value, void>::type
             ifCaseCall(const ConcreteAsEnum& asEnum, std::unique_ptr<T>& result, const Handler& handler);
-			
+            
             template <typename Handler>
             T ifDefault(const Handler& handler);
             
@@ -316,40 +323,27 @@ namespace asenum
             using type = typename TypeMap<Value, Dummy, Cases...>::type;
             static_assert(!std::is_same<type, Dummy>::value, "Type is missing for specified enum value.");
         };
-		
-        template <typename ConcreteAsEnum, typename T_Case>
-        struct Comparator<ConcreteAsEnum, T_Case>
+        
+        
+        template <typename ConcreteAsEnum, template <typename T> class Cmp, typename T_Case>
+        struct Comparator<ConcreteAsEnum, Cmp, T_Case>
         {
             template <typename T>
-            static bool    compare(const ConcreteAsEnum& first, const ConcreteAsEnum& second)
-            {
-                return first.template forceAsCase<T_Case::Code>() == second.template forceAsCase<T_Case::Code>();
-            }
-			
-            template <>
-            static bool    compare<void>(const ConcreteAsEnum&, const ConcreteAsEnum&)
-            {
-                return true;
-            }
-			
-            static bool    compare(const ConcreteAsEnum& first, const ConcreteAsEnum& second)
-            {
-                if (first.enumCase() != T_Case::Code || second.enumCase() != T_Case::Code)
-                {
-                    return false;
-                }
-				
-                return compare<typename T_Case::Type>(first, second);
-            }
+            static typename std::enable_if<!std::is_same<T, void>::value, bool>::type
+            compare(const ConcreteAsEnum& first, const ConcreteAsEnum& second);
+            
+            template <typename T>
+            static typename std::enable_if<std::is_same<T, void>::value, bool>::type
+            compare(const ConcreteAsEnum& first, const ConcreteAsEnum& second);
+            
+            static bool compare(const ConcreteAsEnum& first, const ConcreteAsEnum& second, bool& finalVerdict);
+            static bool compare(const ConcreteAsEnum& first, const ConcreteAsEnum& second);
         };
-		
-        template <typename ConcreteAsEnum, typename T_Case, typename... T_Cases>
-        struct Comparator<ConcreteAsEnum, T_Case, T_Cases...>
+        
+        template <typename ConcreteAsEnum, template <typename T> class Cmp, typename T_Case, typename... T_Cases>
+        struct Comparator<ConcreteAsEnum, Cmp, T_Case, T_Cases...>
         {
-            static bool compare(const ConcreteAsEnum& first, const ConcreteAsEnum& second)
-            {
-                return Comparator<ConcreteAsEnum, T_Case>::compare(first, second) || Comparator<ConcreteAsEnum, T_Cases...>::compare(first, second);
-            }
+            static bool compare(const ConcreteAsEnum& first, const ConcreteAsEnum& second);
         };
     }
 }
@@ -415,7 +409,7 @@ const R& asenum::AsEnum<T_Cases...>::forceAsCase() const
     {
         throw std::invalid_argument("Unwrapping case does not correspond to stored case.");
     }
-	
+    
     return *reinterpret_cast<const UnderlyingType<Case>*>(m_value.get());
 }
 
@@ -435,13 +429,37 @@ asenum::details::AsMap<T, typename asenum::AsEnum<T_Cases...>::Enum, asenum::AsE
 template <typename... T_Cases>
 bool asenum::AsEnum<T_Cases...>::operator==(const AsEnum& other) const
 {
-    return details::Comparator<AsEnum, T_Cases...>::compare(*this, other);
+    return details::Comparator<AsEnum, std::equal_to, T_Cases...>::compare(*this, other);
 }
 
 template <typename... T_Cases>
 bool asenum::AsEnum<T_Cases...>::operator!=(const AsEnum& other) const
 {
-    return !(*this == other);
+    return details::Comparator<AsEnum, std::not_equal_to, T_Cases...>::compare(*this, other);
+}
+
+template <typename... T_Cases>
+bool asenum::AsEnum<T_Cases...>::operator<(const AsEnum& other) const
+{
+    return details::Comparator<AsEnum, std::less, T_Cases...>::compare(*this, other);
+}
+
+template <typename... T_Cases>
+bool asenum::AsEnum<T_Cases...>::operator<=(const AsEnum& other) const
+{
+    return details::Comparator<AsEnum, std::less_equal, T_Cases...>::compare(*this, other);
+}
+
+template <typename... T_Cases>
+bool asenum::AsEnum<T_Cases...>::operator>(const AsEnum& other) const
+{
+    return details::Comparator<AsEnum, std::greater, T_Cases...>::compare(*this, other);
+}
+
+template <typename... T_Cases>
+bool asenum::AsEnum<T_Cases...>::operator>=(const AsEnum& other) const
+{
+    return details::Comparator<AsEnum, std::greater_equal, T_Cases...>::compare(*this, other);
 }
 
 
@@ -550,11 +568,75 @@ template <Enum T_type, typename CaseHandler, typename R>
 R asenum::details::AsMap<T, Enum, ConcreteAsEnum, Types...>::ifCase(const CaseHandler& handler)
 {
     static_assert(!Contains<Enum, T_type, Types...>::value, "Duplicated map case");
-	
+    
     if (!m_result)
     {
         ifCaseCall<T_type>(m_asEnum, m_result, handler);
     }
-	
+    
     return ResultMaker::template makeResult<T_type>(m_asEnum, std::move(m_result));
+}
+
+// Private details - Comparator
+
+template <typename ConcreteAsEnum, template <typename T> class Cmp, typename T_Case>
+bool asenum::details::Comparator<ConcreteAsEnum, Cmp, T_Case>::compare(const ConcreteAsEnum& first, const ConcreteAsEnum& second, bool& finalVerdict)
+{
+    // If AsEnums cases are NOT equal.
+    if (first.enumCase() != second.enumCase())
+    {
+        finalVerdict = true;
+        
+        static constexpr Cmp<typename T_Case::Enum> s_comparator;
+        return s_comparator(first.enumCase(), second.enumCase());
+    }
+    
+    // Both AsEnums cases are equal. Check if they are equal to Comparator's case.
+    if (first.enumCase() == T_Case::Code)
+    {
+        finalVerdict = true;
+        
+        return compare<typename T_Case::Type>(first, second);
+    }
+    
+    return false;
+}
+
+template <typename ConcreteAsEnum, template <typename T> class Cmp, typename T_Case>
+bool asenum::details::Comparator<ConcreteAsEnum, Cmp, T_Case>::compare(const ConcreteAsEnum& first, const ConcreteAsEnum& second)
+{
+    bool finalVerdict = false;
+    return compare(first, second, finalVerdict);
+}
+
+template <typename ConcreteAsEnum, template <typename T> class Cmp, typename T_Case>
+template <typename T>
+typename std::enable_if<!std::is_same<T, void>::value, bool>::type
+asenum::details::Comparator<ConcreteAsEnum, Cmp, T_Case>::compare(const ConcreteAsEnum& first, const ConcreteAsEnum& second)
+{
+    using UT = typename ConcreteAsEnum::template UnderlyingType<T_Case::Code>;
+    static constexpr Cmp<UT> s_comparator;
+    return s_comparator(first.template forceAsCase<T_Case::Code>(), second.template forceAsCase<T_Case::Code>());
+}
+
+template <typename ConcreteAsEnum, template <typename T> class Cmp, typename T_Case>
+template <typename T>
+typename std::enable_if<std::is_same<T, void>::value, bool>::type
+asenum::details::Comparator<ConcreteAsEnum, Cmp, T_Case>::compare(const ConcreteAsEnum&, const ConcreteAsEnum&)
+{
+    static constexpr Cmp<bool> s_comparator;
+    return s_comparator(true, true);
+}
+
+template <typename ConcreteAsEnum, template <typename T> class Cmp, typename T_Case, typename... T_Cases>
+bool asenum::details::Comparator<ConcreteAsEnum, Cmp, T_Case, T_Cases...>::compare(const ConcreteAsEnum& first, const ConcreteAsEnum& second)
+{
+    bool finalVerdict = false;
+    const bool result = Comparator<ConcreteAsEnum, Cmp, T_Case>::compare(first, second, finalVerdict);
+    if (finalVerdict)
+    {
+        return result;
+    }
+    
+    return Comparator<ConcreteAsEnum, Cmp, T_Cases...>::compare(first, second);
 }
