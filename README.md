@@ -13,6 +13,9 @@ asenum combines Enum and Variant: it allows to create lighweight wrapper around 
 - requires only C++11
 - convenient switch, map, equality, comparison
 
+## Usage & Install
+Simply copy file 'include/asenum/asenum.h' to your project.
+
 ## Simple example
 ```
 // More examples you can find in tests
