@@ -176,8 +176,8 @@ namespace asenum
         static typename std::enable_if<!std::is_same<T, void>::value, void>::type call(const void* value, const Handler& handler);
         
     private:
-        const Enum m_enumCase;
-        const std::shared_ptr<void> m_value;
+        Enum m_enumCase;
+        std::shared_ptr<void> m_value;
     };
     
     
