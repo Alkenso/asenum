@@ -29,9 +29,7 @@
 
 namespace asenum
 {
-    /**
-     @class Case descriptor of single Associated Enum case.
-     */
+    /// Case descriptor of single Associated Enum case.
     template <typename T_Enum, T_Enum T_Code, typename T>
     struct Case11
     {
@@ -41,9 +39,7 @@ namespace asenum
     };
     
 #if __cplusplus > 201402L
-    /**
-     @class Case descriptor of single Associated Enum case. Convenient use with C++17 compiler.
-     */
+    ///Case descriptor of single Associated Enum case. Convenient use with C++17 compiler.
     template <auto T_Code, typename T>
     using Case = Case11<decltype(T_Code), T_Code, T>;
 #endif
@@ -67,7 +63,7 @@ namespace asenum
     }
     
     /**
-     @class Associated Enum type.
+     Associated Enum type.
      AsEnum should be specialized with single or multiple 'Case/Case11' types that represent associations.
      */
     template <typename... T_Cases>
