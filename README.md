@@ -131,3 +131,164 @@ void Comparability(const AnyError& error1, const AnyError& error2)
     const bool greaterEqual = error1 >= error2;
 }
 ```
+
+## Some usage examples
+### Square equation roots
+```
+#include <asenum/asenum.h>
+
+#include <string>
+#include <chrono>
+#include <iostream>
+#include <cmath>
+
+
+enum class RootsType
+{
+    None,
+    Single,
+    Pair
+};
+
+using Roots = asenum::AsEnum<
+asenum::Case11<RootsType, RootsType::None, void>,
+asenum::Case11<RootsType, RootsType::Single, double>,
+asenum::Case11<RootsType, RootsType::Pair, std::pair<double, double>>
+>;
+
+
+Roots FindRoots(const double a, const double b, const double c)
+{
+    const double d = (b * b) - (4 * a * c);
+    if (d < 0)
+    {
+        return Roots::create<RootsType::None>();
+    }
+    
+    const double x1 = (-b + sqrt(d)) / (2 * a);
+    const double x2 = (-b - sqrt(d)) / (2 * a);
+    
+    return x1 == x2 ? Roots::create<RootsType::Single>(x1) : Roots::create<RootsType::Pair>(std::make_pair(x1, x2));
+}
+
+double ReadK(const std::string& name)
+{
+    double k = 0;
+    std::cout << "Input " << name << ": ";
+    std::cin >> k;
+    
+    return k;
+}
+
+int main()
+{
+    const double a = ReadK("a");
+    const double b = ReadK("b");
+    const double c = ReadK("c");
+	
+    const Roots roots = FindRoots(a, b, c);
+    roots.doSwitch()
+    .ifCase<RootsType::None>([] {
+        std::cout << "No roots\n";
+    })
+    .ifCase<RootsType::Single>([] (const double x) {
+        std::cout << "Single (equal) roots: " << x;
+    })
+    .ifCase<RootsType::Pair>([] (const std::pair<double, double>& roots) {
+        std::cout << "Different roots. x1 = " << roots.first << "; x2 = " << roots.second << ".\n";
+    });
+    
+    return 0;
+}
+```
+
+### BarCode convertor
+```
+#include <asenum/asenum.h>
+
+#include <string>
+#include <vector>
+
+
+enum class BarCodeType
+{
+    UPC,
+    QrCode
+};
+
+using BarCode = asenum::AsEnum<
+asenum::Case11<BarCodeType, BarCodeType::UPC, std::vector<uint8_t>>,
+asenum::Case11<BarCodeType, BarCodeType::QrCode, std::vector<uint8_t>>>
+>;
+
+std::string ConvertUPCToLink(const std::vector<uint8_t>& photo)
+{
+    std::string link;
+    // perform some computations...
+    
+    return link;
+}
+
+std::string ConvertQrCodeToLink(const std::vector<uint8_t>& photo)
+{
+    std::string link;
+    // perform some computations...
+    
+    return link;
+}
+
+std::string ConvertBarCodeToLink(const BarCode& barCode)
+{
+    return barCode.doMap<std::string>()
+    .ifCase<BarCodeType::UPC>(ConvertUPCToLink)
+    .ifCase<BarCodeType::QrCode>(ConvertQrCodeToLink);
+}
+```
+
+### Downloader
+```
+enum class DownloadResultType
+{
+    Data,
+    Error,
+    Canceled
+};
+
+using DownloadResult = asenum::AsEnum<
+asenum::Case11<DownloadResultType, DownloadResultType::Data, std::string>,
+asenum::Case11<DownloadResultType, DownloadResultType::Error, int>,
+asenum::Case11<DownloadResultType, DownloadResultType::Canceled, void>
+>;
+
+DownloadResult DownloadFileFromLink(const std::string& link)
+{
+    // perform HTTP(s) request
+    
+    // return response data on success, ...
+    return DownloadResult::create<DownloadResultType::Data>("...");
+    
+    // ... or return server error, ...
+    return DownloadResult::create<DownloadResultType::Error>(404);
+    
+    // ... or inform caller that request has been canceled.
+    return DownloadResult::create<DownloadResultType::Canceled>();
+}
+
+int main()
+{
+    const DownloadResult result = DownloadFileFromLink("http://test.api.com/download/file1.txt");
+    
+    result.doSwitch()
+    .ifCase<DownloadResultType::Data>([] (const std::string& content) {
+        std::cout << "Downloaded file content: " << content << "\n";
+    })
+    .ifCase<DownloadResultType::Error>([] (const int errorCode) {
+        std::cout << "Request did fail with error: " << errorCode << "\n";
+    })
+    .ifCase<DownloadResultType::Canceled>([] {
+        std::cout << "Request has been canceled by user\n";
+    });
+    
+    return 0;
+}
+```
